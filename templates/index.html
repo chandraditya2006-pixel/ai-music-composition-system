@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Music Composer | Neural MIDI Generator</title>
+    <meta name="description" content="Development of an AI-Based Music Composition System Using Machine Learning Techniques. Generate, listen to, and download original neural music compositions.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- In-Browser MIDI & Audio Synthesis Libraries (Tone.js + @tonejs/midi) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+</head>
+<body>
+    <!-- Background Animated Gradient Orbs -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1 class="brand-title">HarmoniQ <span>AI</span></h1>
+                    <p class="brand-subtitle">AI-Based Music Composition System Using Machine Learning</p>
+                </div>
+            </div>
+
+            <!-- Health Status Badge -->
+            <div class="status-wrapper">
+                <div id="backendStatusPill" class="status-pill status-checking" title="Checking server status...">
+                    <span class="status-dot"></span>
+                    <span id="backendStatusText" class="status-text">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Project Overview Bar -->
+        <section class="info-banner">
+            <div class="info-item">
+                <span class="info-label">Architecture</span>
+                <span class="info-value">LSTM Neural Network</span>
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-item">
+                <span class="info-label">Output Heads</span>
+                <span class="info-value">Pitch • Duration • Velocity • Gap</span>
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-item">
+                <span class="info-label">Vocabulary</span>
+                <span id="infoVocab" class="info-value">71 Pitches (25-99)</span>
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-item">
+                <span class="info-label">Context Window</span>
+                <span id="infoSeq" class="info-value">20 Notes</span>
+            </div>
+        </section>
+
+        <!-- Main Workspace (Grid: Controls & Player) -->
+        <main class="workspace-grid">
+            
+            <!-- Left Column: Composition Controls -->
+            <section class="card controls-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="4" y1="21" x2="4" y2="14"></line>
+                            <line x1="4" y1="10" x2="4" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12" y2="3"></line>
+                            <line x1="20" y1="21" x2="20" y2="16"></line>
+                            <line x1="20" y1="12" x2="20" y2="3"></line>
+                            <line x1="1" y1="14" x2="7" y2="14"></line>
+                            <line x1="9" y1="8" x2="15" y2="8"></line>
+                            <line x1="17" y1="16" x2="23" y2="16"></line>
+                        </svg>
+                    </div>
+                    <h2>Composition Studio</h2>
+                </div>
+
+                <form id="generateForm" class="controls-form" onsubmit="return false;">
+                    
+                    <!-- Control 1: Note Count -->
+                    <div class="control-group">
+                        <div class="control-label-row">
+                            <label for="numNotesInput">Composition Length</label>
+                            <span id="numNotesBadge" class="value-badge">50 notes</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            id="numNotesInput" 
+                            name="num_notes" 
+                            min="10" 
+                            max="500" 
+                            value="50" 
+                            step="5"
+                            class="custom-slider"
+                        >
+                        <div class="slider-ticks">
+                            <span>10 (Brief)</span>
+                            <span>150</span>
+                            <span>300</span>
+                            <span>500 (Epic)</span>
+                        </div>
+                        <div class="preset-chips">
+                            <button type="button" class="chip" data-target="numNotesInput" data-val="30">30 Notes</button>
+                            <button type="button" class="chip active" data-target="numNotesInput" data-val="50">50 Notes</button>
+                            <button type="button" class="chip" data-target="numNotesInput" data-val="100">100 Notes</button>
+                            <button type="button" class="chip" data-target="numNotesInput" data-val="200">200 Notes</button>
+                        </div>
+                    </div>
+
+                    <!-- Control 2: Temperature -->
+                    <div class="control-group">
+                        <div class="control-label-row">
+                            <label for="tempInput">Creativity (Temperature)</label>
+                            <span id="tempBadge" class="value-badge">0.80</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            id="tempInput" 
+                            name="temperature" 
+                            min="0.1" 
+                            max="1.5" 
+                            value="0.8" 
+                            step="0.05"
+                            class="custom-slider"
+                        >
+                        <div class="slider-ticks">
+                            <span>0.1 (Strict)</span>
+                            <span>0.8 (Harmonic)</span>
+                            <span>1.5 (Adventurous)</span>
+                        </div>
+                        <div class="preset-chips">
+                            <button type="button" class="chip" data-target="tempInput" data-val="0.5">0.5 Coherent</button>
+                            <button type="button" class="chip active" data-target="tempInput" data-val="0.8">0.8 Balanced</button>
+                            <button type="button" class="chip" data-target="tempInput" data-val="1.1">1.1 Creative</button>
+                        </div>
+                        <p class="field-hint">
+                            Lower temperatures produce structured motifs; higher temperatures encourage unexpected musical intervals.
+                        </p>
+                    </div>
+
+                    <!-- Primary Action Button -->
+                    <button type="submit" id="generateBtn" class="primary-btn">
+                        <span class="btn-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Generate AI Music</span>
+                    </button>
+                </form>
+
+                <!-- Processing / Status State Banner -->
+                <div id="statusBanner" class="status-banner hidden">
+                    <div class="banner-spinner"></div>
+                    <div class="banner-content">
+                        <h4 id="statusBannerTitle">Composing Music...</h4>
+                        <p id="statusBannerDesc">Predicting notes with neural LSTM sequence generator</p>
+                    </div>
+                </div>
+
+                <!-- Error Alert Box -->
+                <div id="errorAlert" class="alert-box alert-error hidden">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <h4>Generation Failed</h4>
+                        <p id="errorMessage">An unexpected error occurred.</p>
+                    </div>
+                    <button type="button" id="dismissErrorBtn" class="dismiss-btn">&times;</button>
+                </div>
+            </section>
+
+            <!-- Right Column: Player & Track Details -->
+            <section class="card player-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                        </svg>
+                    </div>
+                    <h2>Audio Studio</h2>
+                    <span id="playerBadge" class="card-tag">Ready</span>
+                </div>
+
+                <!-- Visualizer Display Area -->
+                <div class="visualizer-container">
+                    <canvas id="visualizerCanvas" width="600" height="160"></canvas>
+                    <div id="visualizerOverlay" class="visualizer-overlay">
+                        <span class="overlay-note-icon">🎵</span>
+                        <p id="overlayMessage">Generate music to activate player & visualizer</p>
+                    </div>
+                </div>
+
+                <!-- Audio Player Controls -->
+                <div class="audio-controls">
+                    <!-- Progress & Timeline -->
+                    <div class="timeline-row">
+                        <span id="currentTimeLabel" class="time-label">0:00</span>
+                        <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1" class="seek-slider" disabled>
+                        <span id="totalTimeLabel" class="time-label">0:00</span>
+                    </div>
+
+                    <!-- Button Controls Row -->
+                    <div class="player-buttons-row">
+                        <button type="button" id="stopBtn" class="control-btn" title="Stop" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                            </svg>
+                        </button>
+
+                        <button type="button" id="playBtn" class="play-btn-circle" title="Play / Pause" disabled>
+                            <svg id="playIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <svg id="pauseIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" class="hidden">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                        </button>
+
+                        <div class="volume-container">
+                            <span class="volume-icon">🔊</span>
+                            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" class="volume-slider">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button: Download MIDI -->
+                <div class="download-section">
+                    <a id="downloadBtn" href="#" class="download-btn disabled" download>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span id="downloadBtnText">Download MIDI File</span>
+                    </a>
+                </div>
+
+                <!-- Generated Track Metadata Card -->
+                <div id="metadataCard" class="metadata-card hidden">
+                    <h3 class="metadata-title">Composition Details</h3>
+                    <div class="metadata-grid">
+                        <div class="meta-item">
+                            <span class="meta-label">Filename</span>
+                            <span id="metaFilename" class="meta-val code-text">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Duration</span>
+                            <span id="metaDuration" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Notes Generated</span>
+                            <span id="metaNotes" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Generation Time</span>
+                            <span id="metaGenTime" class="meta-val">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technical Note Callout -->
+                <div class="tech-note">
+                    <div class="note-icon">💡</div>
+                    <p>
+                        <strong>In-Browser MIDI Playback:</strong> Standard HTML <code>&lt;audio&gt;</code> does not support raw MIDI files. This application uses <code>Tone.js</code> and WebAudio polyphonic synthesis to render MIDI notes directly inside your browser.
+                    </p>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>B.Tech Project: <em>Development of an AI-Based Music Composition System Using Machine Learning Techniques</em></p>
+            <p class="footer-sub">Trained with TensorFlow & Keras LSTM • Synthesized via Web Audio</p>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
